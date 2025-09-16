@@ -1,0 +1,140 @@
+/* -------------------------------------------------------------------------- */
+/*              General constants                                             */
+/* -------------------------------------------------------------------------- */
+///** general constants -- don't change **///
+int appFrameRate = 60;
+float mmToToio = 0.7238; // mm to toio unit
+float degree = PI / 180;
+
+///** standard reel mechanism constant **///
+float spinR = 3 * degree * mmToToio; //Rreel: 3.5mm, Rsg: 8.89mm, Rbg:19.56mm delta * (Rs/(Rr*Rb)) = Deg * degree // delta = Deg * Rr*Rb/Rs = 7.7 * degree
+
+///** RigBot param **///
+//float botHeight = 90*mmToToio; // height of RigBot
+float botHeight = 100*mmToToio;
+
+///** Balloon param **//
+//float balloonSize = 260*mmToToio; // 260mm is a real balloon size
+float balloonSize = 150*mmToToio; // test size
+
+// ** tolerance for checking rotation axis ** //
+float tolerance = 20*mmToToio;
+
+//** Whole View **//
+int ViewerWidth = 1450;
+int ViewerHeight = 850;
+
+//** 2D View **//
+int XYViewWidth = 360;
+int XYViewHeight = 360;
+int XYViewCoordX = ViewerWidth - XYViewWidth - 70;
+int XYViewCoordY = ViewerHeight/2 - 395;
+
+///** set up mat data **///
+int minCoordX = 34 - 20;
+int maxCoordX = 339 - 20;
+int minCoordY = 35 - 20;
+int maxCoordY= 250 - 20;
+
+int MAT_WIDTH = maxCoordX - minCoordX;
+int MAT_HEIGHT = maxCoordY - minCoordY;
+
+//int stageWidthMax = 912;
+//int stageDepthMax = 862;
+//int stageWidth = MAT_WIDTH; //614
+//int stageDepth = MAT_HEIGHT; //433
+
+//int stageWidthMax = 1080;
+//int stageDepthMax = 1080;
+int stageWidthMax = 1800;
+int stageDepthMax = 1800;
+int stageWidth = XYViewWidth; //360
+int stageDepth = XYViewHeight; //360
+int stageCenterX = -stageWidth/2;
+int stageCenterY = -stageWidth/2;
+
+color MainStageColor =  color(200, 230);
+
+// matScale for 2DView scaling 
+float matScale = 1;
+
+// directional control button
+int directionalButtonCenterX = ViewerWidth / 2 + 475;
+int directionalButtonCenterY = ViewerHeight / 2 - 215;
+int directionalButtonSize = 25;
+int directionalButtonGap = int(directionalButtonSize*1.2) + 150;
+enum DirectionalState {
+  UP, DOWN, LEFT, RIGHT, NONE
+}
+boolean[] buttonPressed = new boolean[DirectionalState.values().length];
+
+// mode
+boolean trackingMode = false;
+boolean targetingMode = false;
+
+// key control
+int[] dx = {0, 0, -5, 5}; // x-direction delta
+int[] dy = {-5, 5, 0, 0}; // y-direction delta
+char[] keys = {'f', 'b', 'l', 'r'}; 
+
+// joystick control
+enum sliderName{
+  LY, LX, RY, RX, LTRT
+}
+enum buttonName{
+  A, B, X, Y, LB, RB, BACK, START, LJOYSTICK, RJOYSTICK, DPAD
+}
+String joystickDeviceName = "Controller (ESM GAME FOR WINDOWS 1.07)";                        
+
+/* -------------------------------------------------------------------------- */
+/*              STEP 1: How many objects and cubes we have?                   */
+/* -------------------------------------------------------------------------- */
+// ip address of RoverC
+//String[] ips_xy = {"192.168.0.162","192.168.0.2", "192.168.0.231", "192.168.0.222", "192.168.0.135", "192.168.0.6", "192.168.0.130", "192.168.0.150", "192.168.0.114"}; 
+//String[] ips_xy = {"192.168.0.218","192.168.0.106", "192.168.0.126", "192.168.0.163", "192.168.0.102", "192.168.0.230", "192.168.0.130"};
+//String[] ips_xy = {"192.168.0.114"};
+String[] ips_xy = {};
+//String[] ips_z = {"192.168.0.182", "192.168.0.14", "192.168.0.154", "192.168.0.66", "192.168.0.198", "192.168.0.118", "192.168.0.78", "192.168.0.90", "192.168.0.79"};
+//String[] ips_z = {"192.168.0.182", "192.168.0.14", "192.168.0.154", "192.168.0.66", "192.168.0.198", "192.168.0.118", "192.168.0.78"};
+//String[] ips_z = {"192.168.0.131"};
+String[] ips_z = {};
+     
+// port num to communicate with RoverC
+int port = 5204;
+
+// Number of balloons
+int nBalloons = 2;
+// Number of rigBots. Must be at least 1
+int nBots = 2;
+
+/* -------------------------------------------------------------------------- */
+/*              STEP 2: set constants for initial CP calculation              */  
+
+/* -------------------------------------------------------------------------- */
+/* 
+* distance between connection points in mm
+* dist[0] is the distance between connection points 1 and 2,
+* dist[1] is the distance between connection points 2 and 3, and so on
+*/
+//int[] dist = {int(77*mmToToio),int(77*mmToToio),int(77*mmToToio),0};
+int[] dist = {int(balloonSize+100*mmToToio),int(balloonSize+100*mmToToio),int(balloonSize+100*mmToToio),0};
+//int[] dist = {int(100 * mmToToio), int(100 * mmToToio), int(100 * mmToToio), 100, 200};
+
+/* -------------------------------------------------------------------------- */
+/*              Toggle flags and other                                        */
+/* -------------------------------------------------------------------------- */
+boolean modeControl = true;
+boolean mouseControl = true;
+boolean joystickControl = true;
+boolean dataControl = true;
+boolean dataControl_debug = false;
+boolean bodyControl = true;
+boolean bodyControl_display = false;
+boolean bodyControl_debug = false;
+boolean assembly = true;
+boolean hand = false;
+
+// enable these to render rigBots
+boolean enable3Dview = true;
+boolean debugView = true;
+boolean wifiConnectionMode = false;

@@ -1,0 +1,515 @@
+/* -------------------------------------------------------------------------- */
+/*                             XYZ Control                                    */
+/* -------------------------------------------------------------------------- */
+
+void control_z(){
+  // send rate
+  int sendRate = 10;
+  int sendInterval = 1000 / sendRate;
+  int lastSendTime = 0;
+  int currentTime = millis();
+  if(currentTime - lastSendTime >= sendInterval){
+    // send command and data
+    for (int i = 0; i < clients_z.length; i++) {
+      if (clients_z[i].active()) {
+        //String inputDegree = str(reels[i].targetAngle); // Convert the number to a string //<>// //<>//
+        //println("inputDegree: " + inputDegree);
+        //clients_z[i].write(inputDegree + "\n"); // Send the string to the Arduino
+        sendSpeed_z(clients_z[i], round(reels[i].targetAngle), z);
+      }else{
+        println("Client Z" + i + " disconnected, attempting to reconnect...");
+        clients_z[i] = new Client(this, ips_z[i], port);
+        println("Connecting to " + ips_z[i]);
+      }
+    }
+    lastSendTime = currentTime;
+  }
+  //for (int i = 0; i < clients_z.length; i++) {
+  //  if (clients_z[i].active()) {
+  //    //println(reels[i].targetAngle);
+  //    //String inputDegree = str(reels[i].targetAngle); // Convert the number to a string
+  //    //println("inputDegree: " + inputDegree);
+  //    //clients_z[i].write(inputDegree + "\n"); // Send the string to the Arduino
+  //    sendSpeed_z(clients_z[i], round(reels[i].targetAngle), z);
+  //  }
+  //}
+}
+
+void sendSpeed_z(Client client, int key, float speed) {
+  ByteBuffer bbKey = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
+  bbKey.putInt(key);
+  byte[] keyBytes = bbKey.array();
+
+  ByteBuffer bbSpeed = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
+  bbSpeed.putFloat(speed);
+  //ByteBuffer bbSpeed = ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN);
+  //int intSpeed = (int)speed;
+  //bbSpeed.putShort((short)intSpeed);
+  byte[] speedBytes = bbSpeed.array();
+
+  byte[] data = new byte[keyBytes.length + speedBytes.length];
+
+  System.arraycopy(keyBytes, 0, data, 0, keyBytes.length);
+  System.arraycopy(speedBytes, 0, data, keyBytes.length, speedBytes.length);
+
+  client.write(data);
+}
+
+void control_xy(){
+  for (int i = 0; i < clients_xy.length; i++) {
+    if (clients_xy[i].active()) {
+      if(targetingMode){
+        if(omnibots[i].targetSet){
+          if(trackingMode){
+            if(!tracking_robot){
+              clients_xy[i].write('s');
+            }
+            else if(gesture && gesture_status == 0 && i != selectedObject && i != selectedObject_1 && i != selectedObject_2){
+              clients_xy[i].write('s');
+            }
+            else if(gesture && nHands == 2 && tracking_gesture[1] == true){
+              clients_xy[i].write('s');
+            }
+            else if(gesture && gesture_status == 0 && nHands == 4 && tracking_gesture[1] == true && i == selectedObject_1){
+              clients_xy[i].write('s');
+            }
+            else if(gesture && gesture_status == 0 && nHands == 4 && tracking_gesture[3] == true && i == selectedObject_2){
+              clients_xy[i].write('s');
+            }
+            else if(gesture && gesture_status == 2 && nHands == 4 && (tracking_gesture[1] == true || tracking_gesture[3] == true)){
+              clients_xy[i].write('s');
+            }
+            else if(keyPressed && key == 's' || !bots[i].isActive){
+              clients_xy[i].write('s');
+            }else{
+              omnibots[i].moveToTarget(clients_xy[i]);
+            }
+          }else{
+            omnibots[i].moveToTargetSimulator();
+          }
+        }
+      }else{
+        if(bots[i].isActive){
+          directionalInput(i);
+        }
+      }
+    }else {
+      println("Client " + i + " disconnected, attempting to reconnect...");
+      clients_xy[i] = new Client(this, ips_xy[i], port);
+      println("Connecting to " + ips_xy[i]);
+    }
+  }
+}
+
+void directionalInput(int i){
+  DirectionalState currentDirectionalState = DirectionalState.NONE;
+  if(bodyControl && !bodyControl_display){
+    if(right.equals("left")){
+      currentDirectionalState = DirectionalState.LEFT;
+    }
+    if(right.equals("right")){
+      currentDirectionalState = DirectionalState.RIGHT;
+    }
+    if(right.equals("up")){
+      currentDirectionalState = DirectionalState.UP;
+    }
+    if(right.equals("down")){
+      currentDirectionalState = DirectionalState.DOWN;
+    }
+  } else if (joystickControl){
+    if(controlX.equals("left")){
+      currentDirectionalState = DirectionalState.LEFT;
+    }
+    if(controlX.equals("right")){
+      currentDirectionalState = DirectionalState.RIGHT;
+    }
+    if(controlY.equals("up")){
+      currentDirectionalState = DirectionalState.UP;
+    }
+    if(controlY.equals("down")){
+      currentDirectionalState = DirectionalState.DOWN;
+    }
+  } else{
+    if(keyPressed){
+      for (int j = 0; j < keys.length; j++) {
+        if (key == keys[j]) {
+          currentDirectionalState = DirectionalState.values()[j];
+          break;
+        }
+      }
+    }
+    // check button state
+    if (mousePressed) {
+      if (mouseOverButton(directionalButtonCenterX - directionalButtonSize / 2, directionalButtonCenterY - directionalButtonGap - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+        currentDirectionalState = DirectionalState.UP;
+      } else if (mouseOverButton(directionalButtonCenterX - directionalButtonSize / 2, directionalButtonCenterY + directionalButtonGap - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+        currentDirectionalState = DirectionalState.DOWN;
+      } else if (mouseOverButton(directionalButtonCenterX - directionalButtonGap - directionalButtonSize / 2, directionalButtonCenterY - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+        currentDirectionalState = DirectionalState.LEFT;
+      } else if (mouseOverButton(directionalButtonCenterX + directionalButtonGap - directionalButtonSize / 2, directionalButtonCenterY - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+        currentDirectionalState = DirectionalState.RIGHT;
+      }
+    }
+  
+    // update buttonPressed
+    for (DirectionalState state : DirectionalState.values()) {
+      buttonPressed[state.ordinal()] = (state == currentDirectionalState);
+    }
+  }
+
+  // update currentPos and communicate with RoverC
+  char command = 's'; // default command
+    
+  for (int j = 0; j < keys.length; j++) {
+    if (currentDirectionalState.ordinal() == j) {
+      command = keys[j];
+      if(bodyControl && !bodyControl_display){
+        bodyX[selectedObject] += dx[j] * (xySpeed.getValue() / 100);
+        bodyY[selectedObject] += dy[j] * (xySpeed.getValue() / 100);
+      }
+      else{
+        if(!trackingMode){
+          objectXYControl.x += dx[j] * (xySpeed.getValue() / 100);
+          objectXYControl.y += dy[j] * (xySpeed.getValue() / 100);
+        }
+      }
+      break;
+    }
+  }
+  if(command == 's'){
+    clients_xy[i].write('s');
+  } else {
+    sendSpeed_xy(clients_xy[i], command, xy);
+  }
+}
+
+void control_xy_nonWiFi(int i){
+  if(targetingMode){
+    if(omnibots[i].targetSet){
+      if(trackingMode){
+        if(keyPressed && key == 's' || !bots[i].isActive){
+          //println("stop");
+          //clients_xy[i].write('s');
+        }else{
+          //omnibots[i].moveToTarget(clients_xy[i]);
+        }
+      }else{
+        omnibots[i].moveToTargetSimulator();
+      }
+    }
+  }else{
+    if(bots[i].isActive){
+        DirectionalState currentDirectionalState = DirectionalState.NONE;
+        if(bodyControl && !bodyControl_display){
+          if(right.equals("left")){
+            currentDirectionalState = DirectionalState.LEFT;
+          }
+          if(right.equals("right")){
+            currentDirectionalState = DirectionalState.RIGHT;
+          }
+          if(right.equals("up")){
+            currentDirectionalState = DirectionalState.UP;
+          }
+          if(right.equals("down")){
+            currentDirectionalState = DirectionalState.DOWN;
+          }
+        } else if (joystickControl){
+          if(controlX.equals("left")){
+            currentDirectionalState = DirectionalState.LEFT;
+          }
+          if(controlX.equals("right")){
+            currentDirectionalState = DirectionalState.RIGHT;
+          }
+          if(controlY.equals("up")){
+            currentDirectionalState = DirectionalState.UP;
+          }
+          if(controlY.equals("down")){
+            currentDirectionalState = DirectionalState.DOWN;
+          }
+        } else {
+          if(keyPressed){
+            for (int j = 0; j < keys.length; j++) {
+              if (key == keys[j]) {
+                currentDirectionalState = DirectionalState.values()[j];
+                break;
+              }
+            }
+          }
+          // check button state
+          if (mousePressed) {
+            if (mouseOverButton(directionalButtonCenterX - directionalButtonSize / 2, directionalButtonCenterY - directionalButtonGap - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+              currentDirectionalState = DirectionalState.UP;
+            } else if (mouseOverButton(directionalButtonCenterX - directionalButtonSize / 2, directionalButtonCenterY + directionalButtonGap - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+              currentDirectionalState = DirectionalState.DOWN;
+            } else if (mouseOverButton(directionalButtonCenterX - directionalButtonGap - directionalButtonSize / 2, directionalButtonCenterY - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+              currentDirectionalState = DirectionalState.LEFT;
+            } else if (mouseOverButton(directionalButtonCenterX + directionalButtonGap - directionalButtonSize / 2, directionalButtonCenterY - directionalButtonSize / 2, directionalButtonSize, directionalButtonSize)) {
+              currentDirectionalState = DirectionalState.RIGHT;
+            }
+          }
+        
+          // update buttonPressed
+          for (DirectionalState state : DirectionalState.values()) {
+            buttonPressed[state.ordinal()] = (state == currentDirectionalState);
+          }
+        }
+      
+        // update currentPos and communicate with RoverC
+        for (int j = 0; j < keys.length; j++) {
+          if (currentDirectionalState.ordinal() == j) {
+            if(bodyControl && !bodyControl_display){
+               bodyX[selectedObject] += dx[j] * (xySpeed.getValue() / 100);
+              bodyY[selectedObject] += dy[j] * (xySpeed.getValue() / 100);
+            }
+            else {
+              if(!trackingMode){
+                objectXYControl.x += dx[j] * (xySpeed.getValue() / 100);
+                objectXYControl.y += dy[j] * (xySpeed.getValue() / 100);
+              }
+            }
+            break;
+          }
+        }
+    }
+  }
+}
+
+void sendSpeed_xy(Client client, char key, float speed) {
+  byte[] data = new byte[4+1];
+  
+  data[0] = (byte)(key); // Identifier for speed data
+  
+  ByteBuffer bb = ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN);
+  bb.putFloat(speed);
+  
+  byte[] speedBytes = bb.array();
+  System.arraycopy(speedBytes, 0, data, 1, speedBytes.length);
+  
+  client.write(data);
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Helper functions                                */
+/* -------------------------------------------------------------------------- */
+boolean mouseOverButton(int x, int y, int w, int h) {
+  return mouseX > x && mouseX < x + w && mouseY > y && mouseY < y + h;
+}
+
+boolean checkMouseInView(){
+  return mouseInView.x >= 0 && mouseInView.x <= XYViewWidth && mouseInView.y >= 0 && mouseInView.y <= XYViewHeight;
+}
+
+boolean checkMouseInControlView(){
+  return mouseInView.x >= -30 && mouseInView.x <= width && mouseInView.y >= 0 && mouseInView.y <= XYViewHeight + 100;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            2DView Control                                  */
+/* -------------------------------------------------------------------------- */
+void mouseWheel(MouseEvent event) {
+  float e = event.getCount();
+  if(!(keyPressed && key == ' ') && checkMouseInView()){
+    matScale += e * 0.1;
+    matScale = constrain(matScale, 0.5, 15);
+  }
+}
+
+boolean dragging = false;
+float prevMouseX, prevMouseY;
+
+void mousePressed() {
+  if (mouseButton == CENTER && !(keyPressed && key == ' ') && checkMouseInView()) {
+    dragging = true;
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+    cursor(MOVE);
+  }
+}
+
+void mouseDragged() {
+  if (dragging && !(keyPressed && key == ' ') && checkMouseInView()) {
+    float dx = mouseX - prevMouseX;
+    float dy = mouseY - prevMouseY;
+    stageCenterX -= dx;
+    stageCenterY -= dy;
+    prevMouseX = mouseX;
+    prevMouseY = mouseY;
+  }
+}
+
+void mouseReleased() {
+  if (mouseButton == CENTER && !(keyPressed && key == ' ') && checkMouseInView()) {
+    dragging = false;
+    cursor(ARROW);
+  }
+  if(mouseButton == LEFT){
+    isControl = true;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                               joystick                                     */
+/* -------------------------------------------------------------------------- */
+void setupController(){
+  control = ControlIO.getInstance(this);
+  joystick = findDeviceByName(joystickDeviceName);
+  if (joystick == null) {
+    println("JoystickDevice '" + joystickDeviceName + "' not found.");
+  } else {
+    println("JoystickDevice '" + joystickDeviceName + "' found.");
+  }
+}
+
+ControlDevice findDeviceByName(String name) {
+  for (int i = 0; i < control.getNumberOfDevices(); i++) {
+    //println(control.getDevice(i).getName());
+    if (control.getDevice(i).getName().equals(name)) {
+      return control.getDevice(i);
+    }
+  }
+  return null;
+}
+
+float zJoyStickUpdate(float h){
+  if(joystick.getHat(buttonName.DPAD.ordinal()).up()){
+    h = min(h+10, 800);
+  }else if(joystick.getHat(buttonName.DPAD.ordinal()).down()){
+    h = max(h-10, botHeight);
+  }
+  return h;
+}
+
+float yawJoyStickUpdate(float yaw){
+  if(joystick.getButton(buttonName.RB.ordinal()).pressed()){
+    yaw = min(yaw+10, 180);
+  }else if(joystick.getButton(buttonName.LB.ordinal()).pressed()){
+    yaw = max(yaw-10, -180);
+  }
+  return yaw;
+}
+
+float rollJoyStickUpdate(float roll){
+  roll += joystick.getSlider(sliderName.LX.ordinal()).getValue()*10;
+  roll = constrain(roll, -45, 45);
+  return roll;
+}
+
+float pitchJoyStickUpdate(float pitch){
+  pitch += joystick.getSlider(sliderName.LY.ordinal()).getValue()*10;
+  pitch = constrain(pitch, -45, 45);
+  return pitch;
+}
+
+/* -------------------------------------------------------------------------- */
+/*                Data representation and Body representation                 */
+/* -------------------------------------------------------------------------- */
+
+void keyPressed() {
+  if(mouseControl){
+    if (key == '1' && nObstacles >= 1) {
+      obstacles[0].appear = true;
+    } else if (key == '2' && nObstacles >= 2) {
+      obstacles[1].appear = true;
+    } else if (key == '3' && nObstacles >= 3) {
+      obstacles[2].appear = true;
+    }
+  }
+  if(dataControl){
+    if (key == '0') {
+      dataMode = 0; // Switch to intial mode
+    } else if (key == '1') {
+      dataMode = 1; // Switch to wave
+    } else if (key == '2') {
+      dataMode = 2; // Switch to circle
+    } else if (key == '3') {
+      dataMode = 3; // Switch to elephant
+    } else if (key == '4') {
+      dataMode = 4; // Switch to giraffe
+    } else if (key == '5') {
+      dataMode = 5; // Switch to opening
+    }
+    if (key == 'd'){
+      if(dataControl_debug){
+        dataControl_debug = false;
+      } else {
+        dataControl_debug = true;
+      }
+    }
+  }
+  if(bodyControl){
+    if (key == 'p' || key == 'P') {
+      if (currentState.equals("hand")) {
+        bodyControl_display = true;
+        currentState = "body";
+        initializedBody = true;
+      } else {
+        bodyControl_display = false;
+        currentState = "hand";
+      }
+      //print(currentState);
+      sendState();
+    }
+    else if (key == 'q' || key == 'Q') {
+      currentState = "quit";
+      sendState();
+    }
+    if (key == 'g'){
+      gesture_status = 0;
+      if(gesture){
+        gesture = false;
+      } else {
+        gesture = true;
+      }
+    }
+    if(gesture && key == '1'){
+      gesture_status = 1;
+    }
+    if(gesture && key == '2'){
+      gesture_status = 2;
+    }
+    if (key == 'h'){
+      if(hand){
+        hand = false;
+      } else {
+        hand = true;
+      }
+    }
+    if (key == 'd'){
+      if(bodyControl_debug){
+        bodyControl_debug = false;
+      } else {
+        bodyControl_debug = true;
+      }
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/*                            Initialize                                      */
+/* -------------------------------------------------------------------------- */
+
+void InitXYZControl(Balloon selectedBalloon, float minHeight){
+  // Change XYZ and angles values of GUI to match object
+  objectXYControl = new PVector(selectedBalloon.objectCenter.x, selectedBalloon.objectCenter.y);
+  zControl.setRange(minHeight,1200).setValue(selectedBalloon.objectCenter.z);
+      
+  // Change yaw and roll
+  pitchControl.setRange(-45,45).setValue(selectedBalloon.pitch);
+  cp5.getController("Pitch Control").getValueLabel().align(ControlP5.RIGHT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  cp5.getController("Pitch Control").getCaptionLabel().align(ControlP5.LEFT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  //yawControl.setRange(-180,180).setValue(selectedBalloon.yaw-selectedBalloon.slopeAngle);
+  yawControl.setRange(-180,180).setValue(selectedBalloon.yaw);
+  cp5.getController("Yaw Control").getValueLabel().align(ControlP5.RIGHT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  cp5.getController("Yaw Control").getCaptionLabel().align(ControlP5.LEFT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  rollControl.setRange(-45,45).setValue(selectedBalloon.roll);
+  cp5.getController("Roll Control").getValueLabel().align(ControlP5.RIGHT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  cp5.getController("Roll Control").getCaptionLabel().align(ControlP5.LEFT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  
+  // Change XYZ speed
+  xySpeed.setRange(50,100).setValue(selectedBalloon.xySpeed);
+  cp5.getController("X-Y Speed Control").getValueLabel().align(ControlP5.RIGHT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  cp5.getController("X-Y Speed Control").getCaptionLabel().align(ControlP5.LEFT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  zSpeed.setRange(50,100).setValue(selectedBalloon.zSpeed);
+  cp5.getController("Z Speed Control").getValueLabel().align(ControlP5.RIGHT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+  cp5.getController("Z Speed Control").getCaptionLabel().align(ControlP5.LEFT, ControlP5.BOTTOM_OUTSIDE).setPaddingX(0);
+}
